@@ -1212,6 +1212,12 @@ where
 	// FIXME #1483: clone only when changed
 	let old_authority_set = authority_set.clone();
 
+	debug!(
+		target: "afg",
+		"finalize_block {} 1",
+		number
+	);
+
 	let update_res: Result<_, Error> = client.lock_import_and_run(|import_op| {
 		let status = authority_set.apply_standard_changes(
 			hash,
@@ -1231,6 +1237,13 @@ where
 				}
 			}
 		}
+		
+
+		debug!(
+			target: "afg",
+			"finalize_block {} 2",
+			number
+		);
 
 		// NOTE: this code assumes that honest voters will never vote past a
 		// transition block, thus we don't have to worry about the case where

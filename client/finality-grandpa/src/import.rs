@@ -302,10 +302,17 @@ where
 			hash,
 		);
 
+		debug!(
+			target: "afg",
+			"here number is #{}",
+			number,
+		);
+
 		// returns a function for checking whether a block is a descendent of another
 		// consistent with querying client directly after importing the block.
 		let parent_hash = *block.header.parent_hash();
 		let is_descendent_of = is_descendent_of(&*self.inner, Some((hash, parent_hash)));
+
 
 		let mut guard = InnerGuard {
 			guard: Some(self.authority_set.inner().write()),
@@ -365,6 +372,11 @@ where
 				let old = ::std::mem::replace(guard.as_mut(), new_set);
 				guard.set_old(old);
 
+				debug!(
+					target: "afg",
+					"make authority change is forced",
+				);
+
 				AppliedChanges::Forced(new_authorities)
 			} else {
 				let did_standard = guard.as_mut().enacts_standard_change(hash, number, &is_descendent_of)
@@ -372,8 +384,16 @@ where
 					.map_err(ConsensusError::from)?;
 
 				if let Some(root) = did_standard {
+					debug!(
+						target: "afg",
+						"make authority change is standard",
+					);
 					AppliedChanges::Standard(root)
 				} else {
+					debug!(
+						target: "afg",
+						"make authority change is none",
+					);
 					AppliedChanges::None
 				}
 			}
@@ -473,8 +493,20 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 
 		let needs_justification = applied_changes.needs_justification();
 
+		debug!(
+			target: "afg",
+			"needs_justification is #{}",
+			needs_justification,
+		);
+
 		match applied_changes {
 			AppliedChanges::Forced(new) => {
+
+				debug!(
+					target: "afg",
+					"applied_changes forced"
+				);
+
 				// NOTE: when we do a force change we are "discrediting" the old set so we
 				// ignore any justifications from them. this block may contain a justification
 				// which should be checked and imported below against the new authority
@@ -493,17 +525,33 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 				imported_aux.clear_justification_requests = true;
 			},
 			AppliedChanges::Standard(false) => {
+
+				debug!(
+					target: "afg",
+					"applied_changes standard"
+				);
 				// we can't apply this change yet since there are other dependent changes that we
 				// need to apply first, drop any justification that might have been provided with
 				// the block to make sure we request them from `sync` which will ensure they'll be
 				// applied in-order.
 				justification.take();
 			},
-			_ => {},
+			_ => {
+				debug!(
+					target: "afg",
+					"applied_changes none"
+				);
+			},
 		}
 
 		match justification {
 			Some(justification) => {
+				debug!(
+					target: "afg",
+					"block {} justification some",
+					number
+				);
+
 				let import_res = self.import_justification(
 					hash,
 					number,
@@ -522,6 +570,11 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 				});
 			},
 			None => {
+				debug!(
+					target: "afg",
+					"block {} justification none",
+					number
+				);
 				if needs_justification {
 					debug!(
 						target: "afg",
@@ -572,6 +625,7 @@ impl<Backend, Block: BlockT, Client, SC> GrandpaBlockImport<Backend, Block, Clie
 			.map(|(_, change)| (change.canon_hash, change))
 			.collect::<HashMap<_, _>>();
 
+
 		// check for and apply any forced authority set hard fork that apply to
 		// any *pending* standard changes, checking by the block hash at which
 		// they were announced.
@@ -619,6 +673,12 @@ where
 		enacts_change: bool,
 		initial_sync: bool,
 	) -> Result<(), ConsensusError> {
+
+		debug!(
+			target: "afg",
+			"block {} start verify",
+			number
+		);
 		let justification = GrandpaJustification::decode_and_verify_finalizes(
 			&justification,
 			(hash, number),
@@ -627,9 +687,21 @@ where
 		);
 
 		let justification = match justification {
-			Err(e) => return Err(ConsensusError::ClientImport(e.to_string())),
+			Err(e) => {
+				debug!(
+					target: "afg",
+					"decode failed"
+				);
+				return Err(ConsensusError::ClientImport(e.to_string()))
+			},
 			Ok(justification) => justification,
 		};
+
+		debug!(
+			target: "afg",
+			"block {} end verify and start finalize",
+			number
+		);
 
 		let result = finalize_block(
 			self.inner.clone(),
@@ -640,6 +712,11 @@ where
 			justification.into(),
 			initial_sync,
 			Some(&self.justification_sender),
+		);
+
+		debug!(
+			target: "afg",
+			"finalize block"
 		);
 
 		match result {

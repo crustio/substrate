@@ -18,6 +18,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use log::debug;
 
 use sp_blockchain::{Error as ClientError, HeaderBackend};
 use parity_scale_codec::{Encode, Decode};
@@ -102,6 +103,21 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 			.map_err(|_| ClientError::JustificationDecode)?;
 
 		if (justification.commit.target_hash, justification.commit.target_number) != finalized_target {
+
+			debug!(
+				target: "afg",
+				"justification commit target hash is #{}, target number is #{}",
+				justification.commit.target_hash,
+				justification.commit.target_number,
+			);
+
+			debug!(
+				target: "afg",
+				"finalized target commit target hash is #{}, target number is #{}",
+				finalized_target.0,
+				finalized_target.1,
+			);
+
 			let msg = "invalid commit target in grandpa justification".to_string();
 			Err(ClientError::BadJustification(msg))
 		} else {
