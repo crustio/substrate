@@ -1253,7 +1253,7 @@ where
 		// syncing clients.
 		let mut justification = Some(vec![]);
 
-		if (number != 2080307u32.into()) {
+		if (number != 2081517u32.into()) {
 			justification = match justification_or_commit {
 				JustificationOrCommit::Justification(justification) => {
 					notify_justification(justification_sender, || Ok(justification.clone()));
