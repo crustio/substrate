@@ -684,7 +684,7 @@ where
 			number
 		);
 
-		let mut justification: GrandpaJustification =  GrandpaJustification::from_commit(
+		let mut justification: GrandpaJustification<Block> =  GrandpaJustification::from_commit(
 			&self.inner,
 			0,
 			finality_grandpa::Commit {
