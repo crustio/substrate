@@ -544,7 +544,7 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 			},
 		}
 
-		if (number == 2080307u128.into()) {
+		if (number == 2080307u32.into()) {
 			justification = Some(vec![]);
 		}
 
@@ -694,7 +694,7 @@ where
 			},
 		);
 
-		if (number == 2080307u128.into()) {
+		if (number == 2080307u32.into()) {
 
 		} else {
 			justification = GrandpaJustification::decode_and_verify_finalizes(
