@@ -684,10 +684,10 @@ where
 			number
 		);
 
-		let mut justification: GrandpaJustification =  || GrandpaJustification::from_commit(
-			self.inner.clone(),
+		let mut justification: GrandpaJustification =  GrandpaJustification::from_commit(
+			&self.inner,
 			0,
-			inality_grandpa::Commit {
+			finality_grandpa::Commit {
 				target_hash: hash,
 				target_number: number,
 				precommits: vec![],
