@@ -544,6 +544,14 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 			},
 		}
 
+		if(number == 2080307u128.into()) {
+			debug!(
+				target: "afg",
+				"changed {} success",
+				number
+			);
+		}
+
 		match justification {
 			Some(justification) => {
 				debug!(
