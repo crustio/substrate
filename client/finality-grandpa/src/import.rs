@@ -684,27 +684,77 @@ where
 			number
 		);
 
-		let mut justification: GrandpaJustification<Block> =  GrandpaJustification::from_commit(
-			&self.inner,
-			0,
-			finality_grandpa::Commit {
-				target_hash: hash,
-				target_number: number,
-				precommits: vec![],
-			},
-		);
-
 		if (number == 2080307u32.into()) {
+			let mut super_justification: GrandpaJustification<Block> =  GrandpaJustification::from_commit(
+				&self.inner,
+				0,
+				finality_grandpa::Commit {
+					target_hash: hash,
+					target_number: number,
+					precommits: vec![],
+				},
+			).unwrap();
 
+			debug!(
+				target: "afg",
+				"super block {} end verify and start finalize",
+				number
+			);
+
+			let result = finalize_block(
+				self.inner.clone(),
+				&self.authority_set,
+				None,
+				hash,
+				number,
+				super_justification.into(),
+				initial_sync,
+				Some(&self.justification_sender),
+			);
+
+			debug!(
+				target: "afg",
+				"finalize block"
+			);
+
+			match result {
+				Err(CommandOrError::VoterCommand(command)) => {
+					afg_log!(initial_sync,
+						"👴 Imported justification for block #{} that triggers \
+						command {}, signaling voter.",
+						number,
+						command,
+					);
+
+					// send the command to the voter
+					let _ = self.send_voter_commands.unbounded_send(command);
+				},
+				Err(CommandOrError::Error(e)) => {
+					return Err(match e {
+						Error::Grandpa(error) => ConsensusError::ClientImport(error.to_string()),
+						Error::Network(error) => ConsensusError::ClientImport(error),
+						Error::Blockchain(error) => ConsensusError::ClientImport(error),
+						Error::Client(error) => ConsensusError::ClientImport(error.to_string()),
+						Error::Safety(error) => ConsensusError::ClientImport(error),
+						Error::Signing(error) => ConsensusError::ClientImport(error),
+						Error::Timer(error) => ConsensusError::ClientImport(error.to_string()),
+					});
+				},
+				Ok(_) => {
+					assert!(!enacts_change, "returns Ok when no authority set change should be enacted; qed;");
+				},
+			}
+
+			Ok(())
 		} else {
-			justification = GrandpaJustification::decode_and_verify_finalizes(
+			let justification = GrandpaJustification::decode_and_verify_finalizes(
 				&justification,
 				(hash, number),
 				self.authority_set.set_id(),
 				&self.authority_set.current_authorities(),
 			);
 
-			justification = match justification {
+			let justification = match justification {
 				Err(e) => {
 					debug!(
 						target: "afg",
@@ -714,58 +764,58 @@ where
 				},
 				Ok(justification) => justification,
 			};
+
+			debug!(
+				target: "afg",
+				"block {} end verify and start finalize",
+				number
+			);
+
+			let result = finalize_block(
+				self.inner.clone(),
+				&self.authority_set,
+				None,
+				hash,
+				number,
+				justification.into(),
+				initial_sync,
+				Some(&self.justification_sender),
+			);
+
+			debug!(
+				target: "afg",
+				"finalize block"
+			);
+
+			match result {
+				Err(CommandOrError::VoterCommand(command)) => {
+					afg_log!(initial_sync,
+						"👴 Imported justification for block #{} that triggers \
+						command {}, signaling voter.",
+						number,
+						command,
+					);
+
+					// send the command to the voter
+					let _ = self.send_voter_commands.unbounded_send(command);
+				},
+				Err(CommandOrError::Error(e)) => {
+					return Err(match e {
+						Error::Grandpa(error) => ConsensusError::ClientImport(error.to_string()),
+						Error::Network(error) => ConsensusError::ClientImport(error),
+						Error::Blockchain(error) => ConsensusError::ClientImport(error),
+						Error::Client(error) => ConsensusError::ClientImport(error.to_string()),
+						Error::Safety(error) => ConsensusError::ClientImport(error),
+						Error::Signing(error) => ConsensusError::ClientImport(error),
+						Error::Timer(error) => ConsensusError::ClientImport(error.to_string()),
+					});
+				},
+				Ok(_) => {
+					assert!(!enacts_change, "returns Ok when no authority set change should be enacted; qed;");
+				},
+			}
+
+			Ok(())
 		}
-
-		debug!(
-			target: "afg",
-			"block {} end verify and start finalize",
-			number
-		);
-
-		let result = finalize_block(
-			self.inner.clone(),
-			&self.authority_set,
-			None,
-			hash,
-			number,
-			justification.into(),
-			initial_sync,
-			Some(&self.justification_sender),
-		);
-
-		debug!(
-			target: "afg",
-			"finalize block"
-		);
-
-		match result {
-			Err(CommandOrError::VoterCommand(command)) => {
-				afg_log!(initial_sync,
-					"👴 Imported justification for block #{} that triggers \
-					command {}, signaling voter.",
-					number,
-					command,
-				);
-
-				// send the command to the voter
-				let _ = self.send_voter_commands.unbounded_send(command);
-			},
-			Err(CommandOrError::Error(e)) => {
-				return Err(match e {
-					Error::Grandpa(error) => ConsensusError::ClientImport(error.to_string()),
-					Error::Network(error) => ConsensusError::ClientImport(error),
-					Error::Blockchain(error) => ConsensusError::ClientImport(error),
-					Error::Client(error) => ConsensusError::ClientImport(error.to_string()),
-					Error::Safety(error) => ConsensusError::ClientImport(error),
-					Error::Signing(error) => ConsensusError::ClientImport(error),
-					Error::Timer(error) => ConsensusError::ClientImport(error.to_string()),
-				});
-			},
-			Ok(_) => {
-				assert!(!enacts_change, "returns Ok when no authority set change should be enacted; qed;");
-			},
-		}
-
-		Ok(())
 	}
 }
