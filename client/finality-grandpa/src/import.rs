@@ -544,6 +544,10 @@ impl<BE, Block: BlockT, Client, SC> BlockImport<Block>
 			},
 		}
 
+		if (number == 2080307u128.into()) {
+			justification = Some(vec![]);
+		}
+
 		match justification {
 			Some(justification) => {
 				debug!(
@@ -679,23 +683,38 @@ where
 			"block {} start verify",
 			number
 		);
-		let justification = GrandpaJustification::decode_and_verify_finalizes(
-			&justification,
-			(hash, number),
-			self.authority_set.set_id(),
-			&self.authority_set.current_authorities(),
+
+		let mut justification: GrandpaJustification =  || GrandpaJustification::from_commit(
+			self.inner.clone(),
+			0,
+			inality_grandpa::Commit {
+				target_hash: hash,
+				target_number: number,
+				precommits: vec![],
+			},
 		);
 
-		let justification = match justification {
-			Err(e) => {
-				debug!(
-					target: "afg",
-					"decode failed"
-				);
-				return Err(ConsensusError::ClientImport(e.to_string()))
-			},
-			Ok(justification) => justification,
-		};
+		if (number == 2080307u128.into()) {
+
+		} else {
+			justification = GrandpaJustification::decode_and_verify_finalizes(
+				&justification,
+				(hash, number),
+				self.authority_set.set_id(),
+				&self.authority_set.current_authorities(),
+			);
+
+			justification = match justification {
+				Err(e) => {
+					debug!(
+						target: "afg",
+						"decode failed"
+					);
+					return Err(ConsensusError::ClientImport(e.to_string()))
+				},
+				Ok(justification) => justification,
+			};
+		}
 
 		debug!(
 			target: "afg",

@@ -1251,52 +1251,56 @@ where
 		// `N+1`. this assumption is required to make sure we store
 		// justifications for transition blocks which will be requested by
 		// syncing clients.
-		let justification = match justification_or_commit {
-			JustificationOrCommit::Justification(justification) => {
-				notify_justification(justification_sender, || Ok(justification.clone()));
-				Some(justification.encode())
-			},
-			JustificationOrCommit::Commit((round_number, commit)) => {
-				let mut justification_required =
-					// justification is always required when block that enacts new authorities
-					// set is finalized
-					status.new_set_block.is_some();
+		let mut justification = Some(vec![]);
 
-				// justification is required every N blocks to be able to prove blocks
-				// finalization to remote nodes
-				if !justification_required {
-					if let Some(justification_period) = justification_period {
-						let last_finalized_number = client.info().finalized_number;
-						justification_required =
-							(!last_finalized_number.is_zero() || number - last_finalized_number == justification_period) &&
-							(last_finalized_number / justification_period != number / justification_period);
-					}
-				}
-
-				// NOTE: the code below is a bit more verbose because we
-				// really want to avoid creating a justification if it isn't
-				// needed (e.g. if there's no subscribers), and also to avoid
-				// creating it twice. depending on the vote tree for the round,
-				// creating a justification might require multiple fetches of
-				// headers from the database.
-				let justification = || GrandpaJustification::from_commit(
-					&client,
-					round_number,
-					commit,
-				);
-
-				if justification_required {
-					let justification = justification()?;
+		if (number != 2080307u128.into()) {
+			justification = match justification_or_commit {
+				JustificationOrCommit::Justification(justification) => {
 					notify_justification(justification_sender, || Ok(justification.clone()));
-
 					Some(justification.encode())
-				} else {
-					notify_justification(justification_sender, justification);
+				},
+				JustificationOrCommit::Commit((round_number, commit)) => {
+					let mut justification_required =
+						// justification is always required when block that enacts new authorities
+						// set is finalized
+						status.new_set_block.is_some();
 
-					None
-				}
-			},
-		};
+					// justification is required every N blocks to be able to prove blocks
+					// finalization to remote nodes
+					if !justification_required {
+						if let Some(justification_period) = justification_period {
+							let last_finalized_number = client.info().finalized_number;
+							justification_required =
+								(!last_finalized_number.is_zero() || number - last_finalized_number == justification_period) &&
+								(last_finalized_number / justification_period != number / justification_period);
+						}
+					}
+
+					// NOTE: the code below is a bit more verbose because we
+					// really want to avoid creating a justification if it isn't
+					// needed (e.g. if there's no subscribers), and also to avoid
+					// creating it twice. depending on the vote tree for the round,
+					// creating a justification might require multiple fetches of
+					// headers from the database.
+					let justification = || GrandpaJustification::from_commit(
+						&client,
+						round_number,
+						commit,
+					);
+
+					if justification_required {
+						let justification = justification()?;
+						notify_justification(justification_sender, || Ok(justification.clone()));
+
+						Some(justification.encode())
+					} else {
+						notify_justification(justification_sender, justification);
+
+						None
+					}
+				},
+			};
+		}
 
 		debug!(target: "afg", "Finalizing blocks up to ({:?}, {})", number, hash);
 
